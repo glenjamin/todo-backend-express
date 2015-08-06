@@ -1,78 +1,61 @@
-var pg = require('pg.js');
+module.exports = function createTodoBackend() {
 
-module.exports = function createTodoBackend(connectionString) {
+  var todos = [];
+
   function query(query, params, callback) {
-    pg.connect(connectionString, function(err, client, done) {
-      done();
+    callback(null, []);
+  }
 
-      if (err) {
-        callback(err);
-        return;
-      }
+  function getById(id) {
+    var matches = todos.filter(function(t) { return t.id == id });
+    return matches.length && matches[0];
+  }
 
-      client.query(query, params, function(err, result) {
-        if (err) {
-          callback(err);
-          return;
-        }
-
-        callback(null, result.rows);
-      });
-    });
+  var i = 1;
+  function nextId() {
+    return i++;
   }
 
   return {
     all: function(callback) {
-      query('SELECT * FROM todos', [], callback);
+      callback(null, todos);
     },
 
     get: function(id, callback) {
-      query('SELECT * FROM todos WHERE id = $1', [id], function(err, rows) {
-        callback(err, rows && rows[0]);
-      });
+      callback(null, getById(id));
     },
 
     create: function(title, order, callback) {
-      query('INSERT INTO todos ("title", "order", "completed") VALUES ($1, $2, false) RETURNING *', [title, order], function(err, rows) {
-        callback(err, rows && rows[0]);
-      });
+      var id = nextId();
+      var todo = { id: id, title: title, order: order };
+      todos.push(todo);
+      callback(null, todo);
     },
 
     update: function(id, properties, callback) {
-      var assigns = [], values = [];
+      var todo = getById(id);
+
       if ('title' in properties) {
-        assigns.push('"title"=$' + (assigns.length + 1));
-        values.push(properties.title);
+        todo.title = properties.title;
       }
       if ('order' in properties) {
-        assigns.push('"order"=$' + (assigns.length + 1));
-        values.push(properties.order);
+        todo.order = properties.order;
       }
       if ('completed' in properties) {
-        assigns.push('"completed"=$' + (assigns.length + 1));
-        values.push(properties.completed);
+        todo.completed = properties.completed;
       }
 
-      var updateQuery = [
-        'UPDATE todos',
-        'SET ' + assigns.join(', '),
-        'WHERE id = $' + (assigns.length + 1),
-        'RETURNING *'
-      ];
-
-      query(updateQuery.join(' '), values.concat([id]), function(err, rows) {
-        callback(err, rows && rows[0]);
-      });
+      callback(null, todo);
     },
 
     delete: function(id, callback) {
-      query('DELETE FROM todos WHERE id = $1 RETURNING *', [id], function(err, rows) {
-        callback(err, rows && rows[0]);
-      });
+      todos = todos.filter(function(t) { return t.id != id; });
+      callback(null, todos);
     },
 
     clear: function(callback) {
-      query('DELETE FROM todos RETURNING *', [], callback);
+      todos = [];
+      callback(null, todos);
     }
   };
 };

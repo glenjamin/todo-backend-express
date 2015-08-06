@@ -17,12 +17,13 @@ app.use(function(req, res, next) {
 
 // ----- The API implementation
 
-var todos = backend(process.env.DATABASE_URL);
+var todos = backend();
 
 function createCallback(res, onSuccess) {
   return function callback(err, data) {
     if (err || !data) {
-      res.send(500, 'Something bad happened!');
+      res.status(500).send('Something bad happened!');
+      if (err) console.warn(err.stack);
       return;
     }
 
